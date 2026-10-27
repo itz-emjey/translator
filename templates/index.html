@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Language Management System</title>
+    <style>
+        :root { color-scheme: dark; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: "Segoe UI", Tahoma, sans-serif;
+            margin: 0;
+            background: #1e1e2e;
+            color: #cdd6f4;
+            min-height: 100vh;
+        }
+        .container { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+        h1 {
+            text-align: center;
+            color: #ffffff;
+            margin: 8px 0 24px;
+            font-size: 26px;
+            font-weight: 700;
+        }
+        .lang-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        select {
+            background: #313244;
+            color: #cdd6f4;
+            border: 1px solid #45475a;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 15px;
+            min-width: 200px;
+        }
+        .swap-btn {
+            background: #89b4fa;
+            color: #11111b;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+        }
+        .swap-btn:hover { background: #75a6f2; }
+        .panes {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        @media (max-width: 640px) { .panes { grid-template-columns: 1fr; } }
+        .pane {
+            background: #181825;
+            border: 1px solid #313244;
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+        }
+        .pane-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .pane-title { font-size: 13px; font-weight: 700; color: #a6adc8; }
+        .char-count, .detected { font-size: 12px; color: #7f849c; }
+        textarea {
+            background: #11111b;
+            color: #cdd6f4;
+            border: 1px solid #313244;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 15px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 160px;
+            width: 100%;
+        }
+        textarea:focus { outline: none; border-color: #89b4fa; }
+        textarea[readonly] { color: #a6e3a1; }
+        .controls { text-align: center; margin-top: 4px; }
+        .translate-btn {
+            background: #a6e3a1;
+            color: #11111b;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 28px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .translate-btn:hover { background: #94d889; }
+        .translate-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .status {
+            text-align: center;
+            margin-top: 14px;
+            font-size: 13px;
+            color: #7f849c;
+            min-height: 18px;
+        }
+        .status.error { color: #f38ba8; }
+        .loading { color: #89b4fa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Language Management System</h1>
+
+        <div class="lang-bar">
+            <select id="source">
+{{SOURCE_OPTIONS}}
+            </select>
+            <button class="swap-btn" id="swap" title="Swap languages">&#8646;</button>
+            <select id="target">
+{{TARGET_OPTIONS}}
+            </select>
+        </div>
+
+        <div class="panes">
+            <div class="pane">
+                <div class="pane-head">
+                    <span class="pane-title">Source</span>
+                    <span class="char-count" id="charCount">0 chars</span>
+                </div>
+                <textarea id="sourceText" placeholder="Type or paste text here..."></textarea>
+            </div>
+            <div class="pane">
+                <div class="pane-head">
+                    <span class="pane-title">Translation</span>
+                    <span class="detected" id="detected"></span>
+                </div>
+                <textarea id="targetText" placeholder="Translation will appear here..." readonly></textarea>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="translate-btn" id="translate">Translate</button>
+        </div>
+
+        <div class="pane" id="meaningPane" style="display:none; margin-top:16px;">
+            <div class="pane-head">
+                <span class="pane-title">Meaning</span>
+            </div>
+            <textarea id="meaningText" placeholder="Shown when translating a single word..." readonly style="min-height:80px;"></textarea>
+        </div>
+
+        <div class="status" id="status">Ready &#8226; Press Ctrl+Enter to translate</div>
+    </div>
+
+    <script>
+        const sourceSel = document.getElementById('source');
+        const targetSel = document.getElementById('target');
+        const swapBtn = document.getElementById('swap');
+        const sourceText = document.getElementById('sourceText');
+        const targetText = document.getElementById('targetText');
+        const charCount = document.getElementById('charCount');
+        const detected = document.getElementById('detected');
+        const translateBtn = document.getElementById('translate');
+        const status = document.getElementById('status');
+        const meaningText = document.getElementById('meaningText');
+        const meaningPane = document.getElementById('meaningPane');
+
+        targetSel.value = 'en';
+
+        sourceText.addEventListener('input', () => {
+            charCount.textContent = sourceText.value.length + ' chars';
+            if (!sourceText.value.trim()) {
+                targetText.value = '';
+                meaningPane.style.display = 'none';
+                meaningText.value = '';
+            }
+        });
+
+        translateBtn.addEventListener('click', doTranslate);
+        sourceText.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) doTranslate();
+        });
+
+        swapBtn.addEventListener('click', () => {
+            if (sourceSel.value === 'auto') return;
+            const s = sourceSel.value, t = targetSel.value;
+            sourceSel.value = t;
+            targetSel.value = s;
+            const st = sourceText.value, tt = targetText.value;
+            sourceText.value = tt;
+            targetText.value = st;
+        });
+
+        async function doTranslate() {
+            const text = sourceText.value.trim();
+            if (!text) { targetText.value = ''; return; }
+            setStatus('Translating...', 'loading');
+            translateBtn.disabled = true;
+            try {
+                const res = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, source: sourceSel.value, target: targetSel.value })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Translation failed');
+                targetText.value = data.translated;
+                if (data.meaning) {
+                    meaningText.value = data.meaning;
+                    meaningPane.style.display = '';
+                } else {
+                    meaningText.value = '';
+                    meaningPane.style.display = 'none';
+                }
+                if (sourceSel.value === 'auto') {
+                    detected.textContent = 'Detected: ' + data.detected;
+                } else {
+                    detected.textContent = '';
+                }
+                setStatus('Translated successfully', '');
+            } catch (err) {
+                setStatus(err.message, 'error');
+            } finally {
+                translateBtn.disabled = false;
+            }
+        }
+
+        function setStatus(msg, cls) {
+            status.textContent = msg;
+            status.className = cls ? 'status ' + cls : 'status';
+        }
+    </script>
+</body>
+</html>

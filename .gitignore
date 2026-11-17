@@ -1,3 +1,5 @@
 *.o
 translator
 translator.exe
+**/bin/
+**/obj/

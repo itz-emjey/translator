@@ -3,6 +3,10 @@
 A standalone C implementation of the translation app. The Python version has
 been removed, so this folder now contains only the C project.
 
+An ASP.NET Core version of the same website is also available in [`web/`](web/).
+It keeps the existing C project intact. For the C# setup and free publishing
+instructions, see [`web/README.md`](web/README.md).
+
 It implements:
 
 - Language pickers for `auto`, `ceb`, `en`, `fr`, and `tl` (source allows
